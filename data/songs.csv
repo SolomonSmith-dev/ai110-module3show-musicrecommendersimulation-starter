@@ -9,3 +9,13 @@ id,title,artist,genre,mood,energy,tempo_bpm,valence,danceability,acousticness
 8,Night Drive Loop,Neon Echo,synthwave,moody,0.75,110,0.49,0.73,0.22
 9,Focus Flow,LoRoom,lofi,focused,0.40,80,0.59,0.60,0.78
 10,Rooftop Lights,Indigo Parade,indie pop,happy,0.76,124,0.81,0.82,0.35
+11,Runaway,Kanye West,hip-hop,introspective,0.72,88,0.38,0.68,0.15
+12,Gooey,Glass Animals,alternative,melancholic,0.58,100,0.45,0.72,0.52
+13,Nyquist,Earl Sweatshirt,hip-hop,moody,0.45,82,0.36,0.54,0.35
+14,Only,Portishead,trip-hop,dark,0.54,92,0.32,0.61,0.68
+15,Holocene,Bon Iver,indie,melancholic,0.42,76,0.44,0.48,0.82
+16,Everlong,Foo Fighters,rock,intense,0.85,120,0.68,0.79,0.18
+17,Teardrop,Massive Attack,electronic,moody,0.58,95,0.39,0.65,0.45
+18,Alligator,The National,indie rock,introspective,0.68,105,0.52,0.71,0.38
+19,Hurt,Johnny Cash,alt country,melancholic,0.48,98,0.35,0.62,0.88
+20,PRIDE.,Kendrick Lamar,hip-hop,intense,0.79,94,0.51,0.73,0.12

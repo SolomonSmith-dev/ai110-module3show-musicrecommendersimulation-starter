@@ -17,17 +17,57 @@ Replace this paragraph with your own summary of what your version does.
 
 ## How The System Works
 
-Explain your design in plain language.
+**What We're Building:**
+A content-based recommender. Spotify uses collaborative filtering (what other users like) + content-based (song attributes). We're doing the second part: match songs to what a user explicitly says they want. It's transparent, works immediately on new songs, no cold-start. Downside: only finds similar stuff, no serendipity. But it works.
 
-Some prompts to answer:
+**The Scoring Formula:**
+```
+score = (genre_match × 2.0) + (mood_match × 1.5) + energy_similarity + (valence_similarity × 0.5)
+```
 
-- What features does each `Song` use in your system
-  - For example: genre, mood, energy, tempo
-- What information does your `UserProfile` store
-- How does your `Recommender` compute a score for each song
-- How do you choose which songs to recommend
+Genre and mood are binary matches (worth more because they're foundational filters). Energy and valence use proximity: `1.0 - abs(user_target - song_value)`. This rewards songs close to what you want, not extremes.
 
-You can include a simple diagram or bullet list if helpful.
+**Song Features:**
+- `genre`: pop, lofi, rock, ambient, jazz, synthwave, indie pop, hip-hop, country, electronic, r&b, metal, folk, k-pop, reggae, classical
+- `mood`: happy, chill, intense, relaxed, moody, focused, melancholic, nostalgic, energetic, sensual, aggressive, peaceful, laid-back, upbeat, serene
+- `energy` (0.0–1.0): how intense/lively
+- `valence` (0.0–1.0): how bright/optimistic vs. dark/sad
+- `danceability` (0.0–1.0): how dance-friendly
+- `acousticness` (0.0–1.0): acoustic vs. synth
+
+**User Profile Stores:**
+- `favorite_genre` (string)
+- `favorite_mood` (string)
+- `target_energy` (0.0–1.0)
+- `target_valence` (0.0–1.0)
+- `likes_acoustic` (boolean)
+
+**Algorithm Recipe (Finalized):**
+
+For each song, calculate:
+```
+score = (genre_match × 2.0) 
+      + (mood_match × 1.5) 
+      + (energy_similarity × 1.0)
+      + (valence_similarity × 0.5)
+      + (acousticness_bonus)
+```
+
+Where:
+- `genre_match` = 1.0 if genres match, else 0.0
+- `mood_match` = 1.0 if moods match, else 0.0
+- `energy_similarity` = 1.0 - abs(song.energy - user.target_energy)
+- `valence_similarity` = 1.0 - abs(song.valence - user.target_valence)
+- `acousticness_bonus` = 0.5 if user.likes_acoustic AND song.acousticness > 0.7, else 0.0
+
+Then rank all songs by score (descending). For ties, maintain input order.
+
+**Expected Biases:**
+- **Genre over-prioritization**: Genre weight (2.0) is highest. A user seeking "hip-hop" won't see great "indie" songs even if mood/energy are perfect matches.
+- **Filter bubble**: System only recommends similar songs. Won't expose users to unexpected artists or moods outside their stated preferences.
+- **Mood label bias**: Categorical mood depends on subjective labeling. Two "introspective" songs might feel very different emotionally.
+- **Small catalog**: With only 20 songs, some genre/mood combos are underrepresented (no "happy metal" songs). Real systems have 50M+ songs.
+- **No user history**: System doesn't learn; same profile always gets same results. Real Spotify adapts based on what you actually listen to.
 
 ---
 
@@ -41,18 +81,56 @@ You can include a simple diagram or bullet list if helpful.
    python -m venv .venv
    source .venv/bin/activate      # Mac or Linux
    .venv\Scripts\activate         # Windows
+   ```
 
-2. Install dependencies
+2. Install dependencies:
 
-```bash
-pip install -r requirements.txt
-```
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 3. Run the app:
 
-```bash
-python -m src.main
+   ```bash
+   python src/main.py
+   ```
+
+### CLI Verification (Sample Output)
+
+Running with default pop/happy user profile:
+
 ```
+✓ Loaded 20 songs from catalog
+
+======================================================================
+USER PROFILE: POP / HAPPY
+Target Energy: 0.8  |  Target Valence: 0.8
+======================================================================
+
+TOP 5 RECOMMENDATIONS:
+
+1. Sunrise City                        | Neon Echo            | Score: 4.96
+   Genre: pop          | Mood: happy           | Energy: 0.82
+   → genre match (+2.0). mood match (+1.5). energy similarity (0.98). valence similarity (0.48)
+
+2. Gym Hero                            | Max Pulse            | Score: 3.35
+   Genre: pop          | Mood: intense         | Energy: 0.93
+   → genre match (+2.0). energy similarity (0.87). valence similarity (0.48)
+
+3. Rooftop Lights                      | Indigo Parade        | Score: 2.96
+   Genre: indie pop    | Mood: happy           | Energy: 0.76
+   → mood match (+1.5). energy similarity (0.96). valence similarity (0.49)
+
+4. Everlong                            | Foo Fighters         | Score: 1.39
+   Genre: rock         | Mood: intense         | Energy: 0.85
+   → energy similarity (0.95). valence similarity (0.44)
+
+5. PRIDE.                              | Kendrick Lamar       | Score: 1.34
+   Genre: hip-hop      | Mood: intense         | Energy: 0.79
+   → energy similarity (0.99). valence similarity (0.35)
+```
+
+**Verification:** Top result is "Sunrise City" (4.96 points) — perfect match for pop/happy profile (genre + mood + energy match).
 
 ### Running Tests
 
