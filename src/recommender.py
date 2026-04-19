@@ -32,18 +32,47 @@ class UserProfile:
 class Recommender:
     """
     OOP implementation of the recommendation logic.
-    Required by tests/test_recommender.py
+    Mirrors the scoring formula used by score_song() below so the class-based
+    and functional APIs stay in sync.
     """
     def __init__(self, songs: List[Song]):
         self.songs = songs
 
+    def _score(self, user: UserProfile, song: Song) -> Tuple[float, List[str]]:
+        """Return (score, reasons) for a single song against a user profile."""
+        score = 0.0
+        reasons: List[str] = []
+
+        if song.genre == user.favorite_genre:
+            score += 2.0
+            reasons.append("genre match (+2.0)")
+
+        if song.mood == user.favorite_mood:
+            score += 1.5
+            reasons.append("mood match (+1.5)")
+
+        energy_similarity = 1.0 - abs(song.energy - user.target_energy)
+        score += energy_similarity
+        reasons.append(f"energy similarity ({energy_similarity:.2f})")
+
+        if user.likes_acoustic and song.acousticness > 0.7:
+            score += 0.5
+            reasons.append("acousticness match (+0.5)")
+
+        return score, reasons
+
     def recommend(self, user: UserProfile, k: int = 5) -> List[Song]:
-        # TODO: Implement recommendation logic
-        return self.songs[:k]
+        """Return the top k songs, ranked by score descending."""
+        scored = [(song, self._score(user, song)[0]) for song in self.songs]
+        # Stable sort preserves input order on ties.
+        scored.sort(key=lambda item: item[1], reverse=True)
+        return [song for song, _ in scored[:k]]
 
     def explain_recommendation(self, user: UserProfile, song: Song) -> str:
-        # TODO: Implement explanation logic
-        return "Explanation placeholder"
+        """Human-readable explanation of why a song was recommended."""
+        score, reasons = self._score(user, song)
+        reason_text = ". ".join(reasons) if reasons else "no matching signals"
+        return f"Score {score:.2f} - {reason_text}"
 
 def load_songs(csv_path: str) -> List[Dict]:
     """

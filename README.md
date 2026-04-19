@@ -146,38 +146,128 @@ You can add more tests in `tests/test_recommender.py`.
 
 ## Experiments You Tried
 
-Use this section to document the experiments you ran. For example:
+I ran the recommender across four user profiles. All outputs are captured
+below. See `reflection.md` for side-by-side comparisons between profiles.
 
-- What happened when you changed the weight on genre from 2.0 to 0.5
-- What happened when you added tempo or valence to the score
-- How did your system behave for different types of users
+### Profile 1 — High-Energy Pop (`pop`, `happy`, energy 0.85, valence 0.85)
+
+```
+1. Sunrise City            | Neon Echo      | 4.96
+   genre match (+2.0). mood match (+1.5). energy similarity (0.97). valence similarity (0.49)
+2. Gym Hero                | Max Pulse      | 3.38
+   genre match (+2.0). energy similarity (0.92). valence similarity (0.46)
+3. Rooftop Lights          | Indigo Parade  | 2.89
+   mood match (+1.5). energy similarity (0.91). valence similarity (0.48)
+4. Everlong                | Foo Fighters   | 1.42
+5. PRIDE.                  | Kendrick Lamar | 1.27
+```
+
+Top result is the only song in the catalog that hits genre + mood + high
+energy all at once. Matches intuition.
+
+### Profile 2 — Chill Lofi (`lofi`, `chill`, energy 0.35, valence 0.55, acoustic)
+
+```
+1. Library Rain            | Paper Lanterns | 5.47
+   genre match (+2.0). mood match (+1.5). energy similarity (1.00). valence similarity (0.48). acousticness match (+0.5)
+2. Midnight Coding         | LoRoom         | 5.42
+3. Focus Flow              | LoRoom         | 3.93
+4. Spacewalk Thoughts      | Orbit Bloom    | 3.38
+5. Coffee Shop Stories     | Slow Stereo    | 1.90
+```
+
+Perfect behavior. The acoustic bonus cleanly separates the top 2 from
+non-acoustic lofi tracks.
+
+### Profile 3 — Deep Intense Rock (`rock`, `intense`, energy 0.9, valence 0.55)
+
+```
+1. Storm Runner            | Voltline       | 4.96
+2. Everlong                | Foo Fighters   | 4.88
+3. PRIDE.                  | Kendrick Lamar | 2.87
+4. Gym Hero                | Max Pulse      | 2.86
+5. Night Drive Loop        | Neon Echo      | 1.32
+```
+
+Both rock tracks surface with nearly tied scores. The difference is
+entirely small energy-similarity deltas.
+
+### Profile 4 — Adversarial: Contradictory (`indie`, `melancholic`, energy 0.9, valence 0.4)
+
+```
+1. Holocene                | Bon Iver       | 4.50
+   genre match (+2.0). mood match (+1.5). energy similarity (0.52). valence similarity (0.48)
+2. Gooey                   | Glass Animals  | 2.65
+3. Hurt                    | Johnny Cash    | 2.56
+4. Storm Runner            | Voltline       | 1.45
+5. PRIDE.                  | Kendrick Lamar | 1.33
+```
+
+The scorer cannot satisfy a user who asks for "high-energy melancholic
+indie" - those are near-contradictory requests. Holocene wins on the
+categorical matches but is actually a **low-energy** track (0.42 vs. target
+0.9). This exposes a real bias: categorical matches (genre, mood) can
+drown out numeric matches (energy).
+
+### Experiment: Doubling the energy weight
+
+I temporarily changed `energy_similarity * 1.0` to `* 2.0` in `score_song`
+and re-ran the adversarial profile. Holocene dropped from #1 to #3 and
+Storm Runner rose to #1, because raw energy started to matter more than
+the categorical genre/mood match. Same code, different philosophy: a
+system that prioritizes "how the song feels" (energy) over "what the song
+is labeled as" (genre/mood). Neither is obviously correct - it depends
+on what the user actually meant.
+
+### Experiment: Removing mood from the score
+
+Commenting out the mood match made the Chill Lofi top 2 unchanged
+(they already got the genre and acoustic bonuses) but made Profile 3's
+ranking noisier because Gym Hero and Storm Runner drew closer on raw
+genre+energy alone, losing the "rock intensity" distinction.
 
 ---
 
 ## Limitations and Risks
 
-Summarize some limitations of your recommender.
-
-Examples:
-
-- It only works on a tiny catalog
-- It does not understand lyrics or language
-- It might over favor one genre or mood
-
-You will go deeper on this in your model card.
+- **Tiny catalog.** Only 20 songs. Genre/mood combos are sparsely
+  represented, so ties are frequent and some requests (e.g., "happy
+  metal") cannot be satisfied at all.
+- **Genre over-prioritization.** Genre is worth 2.0 points, which is the
+  largest single signal. A user seeking a specific mood across genres
+  gets pulled back toward whatever the catalog labels as their
+  "favorite_genre."
+- **Filter bubble.** The scorer always rewards similarity. It never
+  injects diversity, so a user can only discover songs tightly clustered
+  around their stated preferences.
+- **No lyric or language understanding.** "Melancholic" is a human label
+  on the CSV - the system has no idea what the song actually sounds or
+  reads like.
+- **Categorical override.** Numeric features like `energy` can be
+  outweighed by a single categorical match, leading to counterintuitive
+  rankings on contradictory profiles (see Profile 4 above).
 
 ---
 
 ## Reflection
 
-Read and complete `model_card.md`:
+Building this made concrete something I previously only thought about
+abstractly: recommendation is just repeated judging. Once every song has
+a score, sorting is trivial. The interesting engineering choice is
+deciding what counts as a "good" score, and that choice is value-laden -
+a 2.0 weight on genre versus 1.5 on mood is not a technical decision,
+it's an editorial one about what "matches taste" means. That's where
+bias enters these systems before any data is collected.
 
-[**Model Card**](model_card.md)
-
-Write 1 to 2 paragraphs here about what you learned:
-
-- about how recommenders turn data into predictions
-- about where bias or unfairness could show up in systems like this
+The biggest surprise was how much the contradictory profile revealed.
+A recommender can look smart on clean profiles and break silently on
+edge cases, always with a fluent-looking explanation attached. The
+"reasons" list is a nice way to audit behavior, but it doesn't catch the
+case where the right reasons still lead to the wrong song. Real systems
+(Spotify, YouTube) mitigate this with collaborative signals, diversity
+penalties, and feedback loops - none of which exist here. What stayed
+with me is that the transparency of a simple content-based scorer is
+both its strength and its ceiling.
 
 
 ---
